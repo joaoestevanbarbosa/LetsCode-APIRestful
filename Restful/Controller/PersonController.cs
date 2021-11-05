@@ -11,7 +11,13 @@ namespace Restful.Controller
     [ApiController]
     public class PersonController : ControllerBase
     {
+        static int PersonIdCount = 0;
+
+        static int AddressIdCount = 0;
+
         static List<Person> listPeople = new List<Person>();
+
+        static List<Address> listAddress = new List<Address>();
 
 
         [HttpGet]
@@ -23,10 +29,10 @@ namespace Restful.Controller
         }
 
         [HttpGet]
-        [Route("{index}")]
-        public IActionResult GetPerson([FromRoute] int index)
+        [Route("{id}")]
+        public IActionResult GetPerson([FromRoute] int id)
         {
-            return Ok(listPeople[index]); //pegando pessoa pelo index, deserealizando o json
+            return Ok(listPeople.Where(x => x.Id == id).FirstOrDefault());
         }
 
         [HttpPost]
@@ -41,17 +47,26 @@ namespace Restful.Controller
             if (person.Cpf?.Length != 11)
                 return StatusCode(400, $"O campo {nameof(person.Cpf)} não está no padrão");
 
+            person.Id = PersonIdCount++;
+
             listPeople.Add(person);
             return StatusCode(201);
         }
 
         [HttpPatch]
-        [Route("{index}")]
-        public IActionResult UpdatePerson([FromRoute] int index, [FromBody] Person person)
+        [Route("{id}")]
+        public IActionResult UpdatePerson([FromRoute] int id, [FromBody] Person person)
         {
             try //encapsular erro
             {
-                listPeople[index] = person;
+                var personUpdate = listPeople.Where(x => x.Id == id).FirstOrDefault();
+
+                listPeople.Remove(personUpdate);
+
+                person.Id = id;
+
+                listPeople.Add(person);
+
                 return Ok();
             }
             catch //encapsular erro
@@ -59,17 +74,80 @@ namespace Restful.Controller
                 return StatusCode(500);
             }
 
+        }
 
-            listPeople[index] = person;
+        [HttpDelete]
+        [Route("{id}")]
+        public IActionResult DeletePerson([FromRoute] int id)
+        {
+
+            var personDelete = listPeople.Where(x => x.Id == id).FirstOrDefault();
+
+            listPeople.Remove(personDelete);
+
+            return Ok();
+        }
+
+        [HttpPost]
+        [Route("{PersonID}/Address")]
+        public IActionResult AddAdress([FromRoute] int PersonId, [FromBody] Address address)
+        {
+            address.PersonId = PersonId;
+
+            address.Id = AddressIdCount++;
+
+            listAddress.Add(address);
+
+            return Ok();
+        }
+
+        [HttpGet]
+        [Route("{PersonId}/Address")]
+        public IActionResult GetAddress([FromRoute] int PersonId)
+        {
+            return Ok(listAddress.Where(x => x.PersonId == PersonId));
+        }
+
+        [HttpGet]
+        [Route("{PersonId}/Address/{id}")]
+        public IActionResult GetAddressById([FromRoute] int PersonId, [FromRoute] int id)
+        {
+            var result = listAddress.Where(x => x.PersonId == PersonId && x.Id == id);
+
+            if (result.Any())
+                return Ok(result);
+            else
+                return StatusCode(204, string.Empty);
+
+        }   
+
+        [HttpDelete]
+        [Route("{PersonId}/Address/{id}")]
+        public IActionResult DeleteAddressById([FromRoute] int PersonId, [FromRoute] int id)
+        {
+            var addressToDelete = listAddress.Where(x => x.PersonId == PersonId && x.Id == id).FirstOrDefault();
+
+            listAddress.Remove(addressToDelete);
+
             return Ok();
         }
 
         [HttpDelete]
-        [Route("{index}")]
-        public IActionResult DeletePerson([FromRoute] int index)
+        [Route("{PersonId}/Address")]
+        public IActionResult DeleteAddressByPersonId([FromRoute] int PersonId)
         {
-            listPeople.RemoveAt(index);
+            var addressIds = listAddress.Where(x => x.PersonId == PersonId).Select(x => x.Id).ToList();
+
+
+            foreach (var id in addressIds)
+            {
+                var addressToDelete = listAddress.Where(x => x.PersonId == PersonId && x.Id == id).FirstOrDefault();
+
+                listAddress.Remove(addressToDelete);
+            }
+
             return Ok();
         }
+
     }
 }
